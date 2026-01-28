@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
-import { DataTable } from 'primereact/datatable';
-import type { DataTablePageEvent } from 'primereact/datatable';
+import { useState, useEffect, useRef } from 'react';
+import { DataTable, type DataTablePageEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
+import { OverlayPanel } from 'primereact/overlaypanel';
+import { Button } from 'primereact/button';
+import { InputNumber } from 'primereact/inputnumber';
 import type { Artwork, ArtworksResponse } from './types/artwork';
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
 import 'primereact/resources/primereact.min.css';
+import 'primeicons/primeicons.css'; // Ensure icons are available
 
 function App() {
   const [artworks, setArtworks] = useState<Artwork[]>([]);
@@ -16,8 +19,12 @@ function App() {
   const [rows, setRows] = useState<number>(5);
   const [totalRecords, setTotalRecords] = useState<number>(0);
 
-  // Selection state (storing IDs to persist across pages)
+  // Selection state
   const [rowSelection, setRowSelection] = useState<{ [key: number]: boolean }>({});
+
+  // Overlay Panel state
+  const op = useRef<OverlayPanel>(null);
+  const [customSelectionCount, setCustomSelectionCount] = useState<number | null>(null);
 
   useEffect(() => {
     const loadArtworks = async () => {
@@ -51,18 +58,10 @@ function App() {
   };
 
   const onSelectionChange = (e: any) => {
-    // e.value contains the array of selected Artwork objects currently visible
     const selectedOnCurrentPage = e.value as Artwork[];
-
-    // Create a set of IDs that are currently selected on this page
     const selectedIdsOnPage = new Set(selectedOnCurrentPage.map((a) => a.id));
-
-    // Create a new selection state based on previous state
     const newSelection = { ...rowSelection };
 
-    // Update state for ALL items on the current page
-    // If they are in the 'selectedIdsOnPage' set, mark as true (selected)
-    // If not, remove them from the 'newSelection' object (deselected)
     artworks.forEach((artwork) => {
       if (selectedIdsOnPage.has(artwork.id)) {
         newSelection[artwork.id] = true;
@@ -74,8 +73,25 @@ function App() {
     setRowSelection(newSelection);
   };
 
-  // derived state for the DataTable 'selection' prop
-  // filtering the current 'artworks' based on what is in 'rowSelection'
+  const onCustomSelectSubmit = () => {
+    if (customSelectionCount && customSelectionCount > 0) {
+      const newSelection = { ...rowSelection };
+
+      // Select first 'n' rows from the currently loaded artworks
+      // Math.min ensures we don't try to slice more than available
+      const itemsToSelect = artworks.slice(0, customSelectionCount);
+
+      itemsToSelect.forEach((item) => {
+        newSelection[item.id] = true;
+      });
+
+      setRowSelection(newSelection);
+
+      // Hide overlay after selection
+      op.current?.hide();
+    }
+  };
+
   const selectedArtworks = artworks.filter((artwork) => rowSelection[artwork.id]);
 
   if (error) {
@@ -85,6 +101,31 @@ function App() {
   return (
     <div style={{ padding: '20px' }}>
       <h1>Artworks Gallery</h1>
+
+      {/* Custom Selection Overlay Trigger */}
+      <div style={{ marginBottom: '10px' }}>
+        <Button
+          type="button"
+          icon="pi pi-chevron-down"
+          label="Select Rows"
+          onClick={(e) => op.current?.toggle(e)}
+        />
+
+        <OverlayPanel ref={op} showCloseIcon>
+          <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <label htmlFor="row-count">Select valid rows:</label>
+            <InputNumber
+              id="row-count"
+              value={customSelectionCount}
+              onValueChange={(e) => setCustomSelectionCount(e.value)}
+              placeholder="Enter count..."
+              min={0}
+              max={rows} // Limit to current page size logic
+            />
+            <Button label="Submit" onClick={onCustomSelectSubmit} />
+          </div>
+        </OverlayPanel>
+      </div>
 
       <div className="card">
         <DataTable
