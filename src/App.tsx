@@ -16,6 +16,9 @@ function App() {
   const [rows, setRows] = useState<number>(5);
   const [totalRecords, setTotalRecords] = useState<number>(0);
 
+  // Selection state (storing IDs to persist across pages)
+  const [rowSelection, setRowSelection] = useState<{ [key: number]: boolean }>({});
+
   useEffect(() => {
     const loadArtworks = async () => {
       try {
@@ -43,9 +46,37 @@ function App() {
   }, [page, rows]);
 
   const onPageChange = (event: DataTablePageEvent) => {
-    setPage((event.page || 0) + 1); // PrimeReact uses 0-based index
+    setPage((event.page || 0) + 1);
     setRows(event.rows);
   };
+
+  const onSelectionChange = (e: any) => {
+    // e.value contains the array of selected Artwork objects currently visible
+    const selectedOnCurrentPage = e.value as Artwork[];
+
+    // Create a set of IDs that are currently selected on this page
+    const selectedIdsOnPage = new Set(selectedOnCurrentPage.map((a) => a.id));
+
+    // Create a new selection state based on previous state
+    const newSelection = { ...rowSelection };
+
+    // Update state for ALL items on the current page
+    // If they are in the 'selectedIdsOnPage' set, mark as true (selected)
+    // If not, remove them from the 'newSelection' object (deselected)
+    artworks.forEach((artwork) => {
+      if (selectedIdsOnPage.has(artwork.id)) {
+        newSelection[artwork.id] = true;
+      } else {
+        delete newSelection[artwork.id];
+      }
+    });
+
+    setRowSelection(newSelection);
+  };
+
+  // derived state for the DataTable 'selection' prop
+  // filtering the current 'artworks' based on what is in 'rowSelection'
+  const selectedArtworks = artworks.filter((artwork) => rowSelection[artwork.id]);
 
   if (error) {
     return <div style={{ color: 'red', padding: '20px' }}>Error: {error}</div>;
@@ -68,7 +99,11 @@ function App() {
           onPage={onPageChange}
           loading={loading}
           tableStyle={{ minWidth: '50rem' }}
+          selection={selectedArtworks}
+          onSelectionChange={onSelectionChange}
+          selectionMode="multiple"
         >
+          <Column selectionMode="multiple" headerStyle={{ width: '3rem' }}></Column>
           <Column field="title" header="Title"></Column>
           <Column field="place_of_origin" header="Place of Origin"></Column>
           <Column field="artist_display" header="Artist"></Column>
