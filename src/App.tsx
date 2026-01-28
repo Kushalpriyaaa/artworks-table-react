@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { DataTable, type DataTablePageEvent } from 'primereact/datatable';
+import { DataTable, type DataTablePageEvent, type DataTableSelectionMultipleChangeEvent } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { OverlayPanel } from 'primereact/overlaypanel';
 import { Button } from 'primereact/button';
@@ -57,7 +57,7 @@ function App() {
     setRows(event.rows);
   };
 
-  const onSelectionChange = (e: any) => {
+  const onSelectionChange = (e: DataTableSelectionMultipleChangeEvent<Artwork[]>) => {
     const selectedOnCurrentPage = e.value as Artwork[];
     const selectedIdsOnPage = new Set(selectedOnCurrentPage.map((a) => a.id));
     const newSelection = { ...rowSelection };
@@ -117,7 +117,7 @@ function App() {
             <InputNumber
               id="row-count"
               value={customSelectionCount}
-              onValueChange={(e) => setCustomSelectionCount(e.value)}
+              onValueChange={(e) => setCustomSelectionCount(e.value as number | null)}
               placeholder="Enter count..."
               min={0}
               max={rows} // Limit to current page size logic
